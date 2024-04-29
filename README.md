@@ -1,11 +1,8 @@
+
 # Duckdb_bigquery
 
-This repository is based on https://github.com/duckdb/extension-template, check it out if you want to build and ship your own DuckDB extension.
-
----
-
-This extension, Duckdb_bigquery, allow you to ... <extension_goal>.
-
+⚠ **This extension is a work in progress and is not yet functional.** ⚠
+This extension is meant to be a foreign data wrapper for BigQuery.
 
 ## Building
 ### Managing dependencies
