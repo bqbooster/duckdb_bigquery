@@ -1,12 +1,8 @@
 {
   "name": "duckdb-bigquery",
   "version-string": "unversioned",
-  "homepage": "https://github.com/GoogleCloudPlatform/cpp-samples/",
   "description": "DuckDB extension for BigQuery",
   "dependencies": [
-    {
-      "name": "openssl"
-    },
     {
       "name": "google-cloud-cpp",
       "default-features": false,

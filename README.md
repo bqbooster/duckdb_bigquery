@@ -2,6 +2,7 @@
 # Duckdb_bigquery
 
 ⚠ **This extension is a work in progress and is not yet functional.** ⚠
+
 This extension is meant to be a foreign data wrapper for BigQuery.
 
 ## Building
@@ -17,7 +18,7 @@ Note: VCPKG is only required for extensions that want to rely on it for dependen
 ### Build steps
 Now to build the extension, run:
 ```sh
-make
+VCPKG_TOOLCHAIN_PATH=`pwd`/vcpkg/scripts/buildsystems/vcpkg.cmake GEN=ninja make debug
 ```
 The main binaries that will be built are:
 ```sh
