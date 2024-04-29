@@ -8,13 +8,19 @@
 #include "storage/bigquery_transaction.hpp"
 #include "bigquery_connection.hpp"
 
+//#include <google/cloud/bigquery/storage/v1/bigquery_read_client.h>
+//#include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
+
+//#include <google/cloud/bigquery/bigquery_write_client.h>
+#include "google/cloud/bigquery/bigquery_write_client.h"
+
 namespace duckdb {
 
 struct BigQueryExecuteBindData : public TableFunctionData {
 	explicit BigQueryExecuteBindData(BigQueryCatalog &bigquery_catalog, string query_p)
 	    : bigquery_catalog(bigquery_catalog), query(std::move(query_p)) {
 	}
-
+	bigquery::BigQueryReadClient client(bigquery::MakeBigQueryReadConnection());
 	bool finished = false;
 	BigQueryCatalog &bigquery_catalog;
 	string query;

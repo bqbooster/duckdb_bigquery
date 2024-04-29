@@ -76,8 +76,7 @@ DatabaseSize BigQueryCatalog::GetDatabaseSize(ClientContext &context) {
 SELECT SUM(data_length + index_length)
 FROM information_schema.tables
 WHERE table_schema = ${SCHEMA_NAME};
-)",
-	                                 "${SCHEMA_NAME}", BigQueryUtils::WriteLiteral(default_schema));
+)", "${SCHEMA_NAME}", BigQueryUtils::WriteLiteral(default_schema));
 	auto result = postgres_transaction.Query(query);
 	DatabaseSize size;
 	size.free_blocks = 0;

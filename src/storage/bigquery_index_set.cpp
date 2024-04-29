@@ -34,8 +34,7 @@ void BigQueryIndexSet::LoadEntries(ClientContext &context) {
 SELECT DISTINCT TABLE_NAME, INDEX_NAME
 FROM INFORMATION_SCHEMA.STATISTICS
 WHERE TABLE_SCHEMA = 'bigqueryscanner';
-)",
-	                                 "${SCHEMA_NAME}", BigQueryUtils::WriteLiteral(schema.name));
+)", "${SCHEMA_NAME}", BigQueryUtils::WriteLiteral(schema.name));
 
 	auto &transaction = BigQueryTransaction::Get(context, catalog);
 	auto result = transaction.Query(query);
