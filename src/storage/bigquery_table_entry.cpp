@@ -81,7 +81,8 @@ unique_ptr<BaseStatistics> BigQueryTableEntry::GetStatistics(ClientContext &cont
 	return nullptr;
 }
 
-void BigQueryTableEntry::BindUpdateConstraints(LogicalGet &, LogicalProjection &, LogicalUpdate &, ClientContext &) {
+void BigQueryTableEntry::BindUpdateConstraints(Binder &binder, LogicalGet &get, LogicalProjection &proj, LogicalUpdate &update,
+	                                   ClientContext &context) {
 }
 
 TableFunction BigQueryTableEntry::GetScanFunction(ClientContext &context, unique_ptr<FunctionData> &bind_data) {

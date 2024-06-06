@@ -56,7 +56,7 @@ void OptimizeBigQueryScan(unique_ptr<LogicalOperator> &op) {
 	}
 }
 
-void BigQueryOptimizer::Optimize(ClientContext &context, OptimizerExtensionInfo *info, unique_ptr<LogicalOperator> &plan) {
+void BigQueryOptimizer::Optimize(OptimizerExtensionInput &input, unique_ptr<LogicalOperator> &plan) {
 	OptimizeBigQueryScan(plan);
 }
 
