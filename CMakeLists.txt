@@ -11,8 +11,6 @@ set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 
 set(BIGQUERY_INCLUDE_DIR
 ${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include/)
-message(STATUS "BIGQUERY_INCLUDE_DIR: ${BIGQUERY_INCLUDE_DIR}")
-message(STATUS "Current working directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories(${BIGQUERY_INCLUDE_DIR})
 
 add_subdirectory(src)

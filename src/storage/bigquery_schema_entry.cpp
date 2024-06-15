@@ -86,7 +86,7 @@ void BigQueryUnqualifyColumnRef(ParsedExpression &expr) {
 // 	return sql;
 // }
 
-optional_ptr<CatalogEntry> BigQuerySchemaEntry::CreateIndex(ClientContext &context, CreateIndexInfo &info,
+optional_ptr<CatalogEntry> BigQuerySchemaEntry::CreateIndex(CatalogTransaction transaction, CreateIndexInfo &info,
                                                          TableCatalogEntry &table) {
 	//auto &bigquery_transaction = BigQueryTransaction::Get(context, table.catalog);
 	//bigquery_transaction.Query(GetBigQueryCreateIndex(info, table));
@@ -163,12 +163,12 @@ optional_ptr<CatalogEntry> BigQuerySchemaEntry::CreateCollation(CatalogTransacti
 	throw BinderException("BigQuery databases do not support creating collations");
 }
 
-void BigQuerySchemaEntry::Alter(ClientContext &context, AlterInfo &info) {
+void BigQuerySchemaEntry:: Alter(CatalogTransaction transaction, AlterInfo &info) {
 	if (info.type != AlterType::ALTER_TABLE) {
 		throw BinderException("Only altering tables is supported for now");
 	}
 	auto &alter = info.Cast<AlterTableInfo>();
-	tables.AlterTable(context, alter);
+	tables.AlterTable(transaction.GetContext(), alter);
 }
 
 bool CatalogTypeIsSupported(CatalogType type) {

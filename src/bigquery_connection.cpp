@@ -39,7 +39,7 @@ BigQueryConnection &BigQueryConnection::operator=(BigQueryConnection &&other) no
 
 BigQueryConnection BigQueryConnection::Open(const string &connection_string) {
 	BigQueryConnection result;
-	//result.connection = make_shared<OwnedBigQueryConnection>(BigQueryUtils::Connect(connection_string));
+	//result.connection = make_shared_ptr<OwnedBigQueryConnection>(BigQueryUtils::Connect(connection_string));
 	result.dsn = connection_string;
 	result.Execute("SET character_set_results = 'utf8mb4';");
 	return result;

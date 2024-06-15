@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "duckdb/common/shared_ptr.hpp"
 #include "bigquery_utils.hpp"
 #include "bigquery_result.hpp"
 
