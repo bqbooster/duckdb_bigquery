@@ -8,12 +8,6 @@
 #include "storage/bigquery_transaction.hpp"
 #include "bigquery_connection.hpp"
 
-//#include <google/cloud/bigquery/storage/v1/bigquery_read_client.h>
-//#include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
-
-//#include "google/cloud/bigquery/bigquery_write_client.h"
-//#include "google/cloud/bigquery/bigquery_read_client.h"
-//#include "google/cloud/bigquery/bigquery_read_connection.h"
 #include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
 
 namespace bigquery_storage = ::google::cloud::bigquery_storage_v1;
@@ -24,8 +18,6 @@ struct BigQueryExecuteBindData : public TableFunctionData {
 	explicit BigQueryExecuteBindData(BigQueryCatalog &bigquery_catalog, string query_p)
 	    : bigquery_catalog(bigquery_catalog), query(std::move(query_p)) {
 	}
-	bigquery_storage::BigQueryReadClient client = bigquery_storage::BigQueryReadClient(
-      bigquery_storage::MakeBigQueryReadConnection());
 	bool finished = false;
 	BigQueryCatalog &bigquery_catalog;
 	string query;
@@ -33,6 +25,10 @@ struct BigQueryExecuteBindData : public TableFunctionData {
 
 static duckdb::unique_ptr<FunctionData> BigQueryExecuteBind(ClientContext &context, TableFunctionBindInput &input,
                                                          vector<LogicalType> &return_types, vector<string> &names) {
+
+	bigquery_storage::BigQueryReadClient client =
+	bigquery_storage::BigQueryReadClient(bigquery_storage::MakeBigQueryReadConnection());
+
 	return_types.emplace_back(LogicalType::BOOLEAN);
 	names.emplace_back("Success");
 

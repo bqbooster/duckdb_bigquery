@@ -11,6 +11,12 @@ add_library(
   bigquery_scanner.cpp
   bigquery_storage.cpp
   bigquery_utils.cpp)
+
+#  set(ALL_OBJECT_FILES
+#    ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:bigquery_ext_library>
+#    PARENT_SCOPE)
+
+# Ensure storage objects are included
 set(ALL_OBJECT_FILES
-    ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:bigquery_ext_library>
-    PARENT_SCOPE)
+${ALL_OBJECT_FILES} $<TARGET_OBJECTS:bigquery_ext_library> $<TARGET_OBJECTS:bigquery_ext_storage>
+PARENT_SCOPE)

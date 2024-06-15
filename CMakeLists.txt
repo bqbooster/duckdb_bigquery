@@ -15,8 +15,10 @@ include_directories(${BIGQUERY_INCLUDE_DIR})
 
 add_subdirectory(src)
 
+# set(PARAMETERS "-no-warnings")
 build_loadable_extension(${TARGET_NAME} ${ALL_OBJECT_FILES})
 
+# Loadable binary
 target_include_directories(${LOADABLE_EXTENSION_NAME}
                            PRIVATE include ${BIGQUERY_INCLUDE_DIR})
 target_link_libraries(${LOADABLE_EXTENSION_NAME} OpenSSL::SSL OpenSSL::Crypto google-cloud-cpp::bigquery Threads::Threads)
