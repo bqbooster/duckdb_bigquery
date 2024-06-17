@@ -33,8 +33,8 @@ void BigQueryTransactionManager::RollbackTransaction(Transaction &transaction) {
 
 void BigQueryTransactionManager::Checkpoint(ClientContext &context, bool force) {
 	auto &transaction = BigQueryTransaction::Get(context, db.GetCatalog());
-	auto &db = transaction.GetConnection();
-	db.Execute("CHECKPOINT");
+	//auto &db = transaction.GetConnection();
+	//db.Execute("CHECKPOINT");
 }
 
 } // namespace duckdb

@@ -35,12 +35,17 @@ string SecretValueOrEmpty(const KeyValueSecret &kv_secret, const string &name) {
 
 static unique_ptr<Catalog> BigQueryAttach(StorageExtensionInfo *storage_info, ClientContext &context, AttachedDatabase &db,
                                        const string &name, AttachInfo &info, AccessMode access_mode) {
+	Printer::Print("BigQueryAttach");
+	string database = info.path;
+	string execution_project = database;
 	// check if we have a secret provided
 	string secret_name;
 	for (auto &entry : info.options) {
 		auto lower_name = StringUtil::Lower(entry.first);
 		if (lower_name == "type" || lower_name == "read_only") {
 			// already handled
+		} else if (lower_name == "execution_project") {
+			execution_project = entry.second.ToString();
 		} else if (lower_name == "secret") {
 			secret_name = entry.second.ToString();
 		} else {
@@ -57,28 +62,21 @@ static unique_ptr<Catalog> BigQueryAttach(StorageExtensionInfo *storage_info, Cl
 		secret_name = "__default_bigquery";
 	}
 
-	//string connection_string = info.path;
 	auto secret_entry = GetSecret(context, secret_name);
-	string database;
 	if (secret_entry) {
 		// secret found - read data
 		const auto &kv_secret = dynamic_cast<const KeyValueSecret &>(*secret_entry->secret);
-		//string new_connection_info;
-
-		//new_connection_info += AddConnectionOption(kv_secret, "user");
-		//new_connection_info += AddConnectionOption(kv_secret, "password");
-		//new_connection_info += AddConnectionOption(kv_secret, "host");
-		//new_connection_info += AddConnectionOption(kv_secret, "port");
+		execution_project = SecretValueOrEmpty(kv_secret, "execution_project");
 		database = SecretValueOrEmpty(kv_secret, "database");
-		//new_connection_info += AddConnectionOption(kv_secret, "socket");
-
-		// connection_string = new_connection_info + connection_string;
 	} else if (explicit_secret) {
 		// secret not found and one was explicitly provided - throw an error
 		throw BinderException("Secret with name \"%s\" not found", secret_name);
 	}
 
-	return make_uniq<BigQueryCatalog>(db, database, access_mode);
+	Printer::Print("execution_project: " + execution_project + "\n");
+	Printer::Print("database: " + database + "\n");
+
+	return make_uniq<BigQueryCatalog>(db, execution_project, database, access_mode);
 }
 
 static unique_ptr<TransactionManager> BigQueryCreateTransactionManager(StorageExtensionInfo *storage_info,

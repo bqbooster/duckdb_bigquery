@@ -44,11 +44,11 @@ SinkResultType BigQueryExecuteQuery::Sink(ExecutionContext &context, DataChunk &
 //===--------------------------------------------------------------------===//
 SinkFinalizeType BigQueryExecuteQuery::Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
                                              OperatorSinkFinalizeInput &input) const {
-	auto &gstate = input.global_state.Cast<BigQueryExecuteQueryGlobalState>();
-	auto &transaction = BigQueryTransaction::Get(context, table.catalog);
-	auto &connection = transaction.GetConnection();
-	auto result = connection.Query(query);
-	gstate.affected_rows = result->AffectedRows();
+	// auto &gstate = input.global_state.Cast<BigQueryExecuteQueryGlobalState>();
+	// auto &transaction = BigQueryTransaction::Get(context, table.catalog);
+	// auto &connection = transaction.GetConnection();
+	// auto result = connection.Query(query);
+	// gstate.affected_rows = result->AffectedRows();
 	return SinkFinalizeType::READY;
 }
 

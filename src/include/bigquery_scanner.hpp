@@ -16,15 +16,14 @@ namespace duckdb {
 class BigQueryTableEntry;
 class BigQueryTransaction;
 
-struct BigQueryBindData : public FunctionData {
-	explicit BigQueryBindData(BigQueryTableEntry &table) : table(table) {
+struct BigQueryScanBindData : public FunctionData {
+	explicit BigQueryScanBindData(BigQueryTableEntry &table) : table(table) {
 	}
 
 	BigQueryTableEntry &table;
-	vector<BigQueryType> bigquery_types;
-	vector<string> names;
-	vector<LogicalType> types;
-	string limit;
+	vector<string> column_names;
+	//vector<LogicalType> types;
+	//string limit;
 
 public:
 	unique_ptr<FunctionData> Copy() const override {
@@ -38,11 +37,6 @@ public:
 class BigQueryScanFunction : public TableFunction {
 public:
 	BigQueryScanFunction();
-};
-
-class BigQueryQueryFunction : public TableFunction {
-public:
-	BigQueryQueryFunction();
 };
 
 class BigQueryClearCacheFunction : public TableFunction {

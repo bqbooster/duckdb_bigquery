@@ -8,10 +8,6 @@
 #include "storage/bigquery_transaction.hpp"
 #include "bigquery_connection.hpp"
 
-#include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
-
-namespace bigquery_storage = ::google::cloud::bigquery_storage_v1;
-
 namespace duckdb {
 
 struct BigQueryExecuteBindData : public TableFunctionData {
@@ -25,9 +21,6 @@ struct BigQueryExecuteBindData : public TableFunctionData {
 
 static duckdb::unique_ptr<FunctionData> BigQueryExecuteBind(ClientContext &context, TableFunctionBindInput &input,
                                                          vector<LogicalType> &return_types, vector<string> &names) {
-
-	bigquery_storage::BigQueryReadClient client =
-	bigquery_storage::BigQueryReadClient(bigquery_storage::MakeBigQueryReadConnection());
 
 	return_types.emplace_back(LogicalType::BOOLEAN);
 	names.emplace_back("Success");
@@ -56,7 +49,7 @@ static void BigQueryExecuteFunc(ClientContext &context, TableFunctionInput &data
 	if (transaction.GetAccessMode() == AccessMode::READ_ONLY) {
 		throw PermissionException("bigquery_execute cannot be run in a read-only connection");
 	}
-	transaction.GetConnection().Execute(data.query);
+	//transaction.GetConnection().Execute(data.query);
 	data.finished = true;
 }
 

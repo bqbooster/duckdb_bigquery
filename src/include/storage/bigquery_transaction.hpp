@@ -27,7 +27,7 @@ public:
 	void Commit();
 	void Rollback();
 
-	BigQueryConnection &GetConnection();
+	// BigQueryConnection &GetConnection();
 	unique_ptr<BigQueryResult> Query(const string &query);
 	static BigQueryTransaction &Get(ClientContext &context, Catalog &catalog);
 	AccessMode GetAccessMode() const {
@@ -35,7 +35,7 @@ public:
 	}
 
 private:
-	BigQueryConnection connection;
+	//BigQueryConnection connection;
 	BigQueryTransactionState transaction_state;
 	AccessMode access_mode;
 };

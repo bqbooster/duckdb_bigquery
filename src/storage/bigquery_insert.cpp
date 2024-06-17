@@ -142,7 +142,7 @@ SinkResultType BigQueryInsert::Sink(ExecutionContext &context, DataChunk &chunk,
 
 	auto &gstate = input.global_state.Cast<BigQueryInsertGlobalState>();
 	auto &transaction = BigQueryTransaction::Get(context.client, gstate.table.catalog);
-	auto &con = transaction.GetConnection();
+	//auto &con = transaction.GetConnection();
 	// cast to varchar
 	D_ASSERT(chunk.ColumnCount() == gstate.varchar_chunk.ColumnCount());
 	chunk.Flatten();
@@ -214,7 +214,7 @@ SinkResultType BigQueryInsert::Sink(ExecutionContext &context, DataChunk &chunk,
 		gstate.insert_values += ")";
 		if (gstate.insert_values.size() >= INSERT_FLUSH_SIZE) {
 			// perform the actual insert
-			con.Query(gstate.base_insert_query + gstate.insert_values);
+			// con.Query(gstate.base_insert_query + gstate.insert_values);
 			// reset the to-be-inserted values
 			gstate.insert_values = string();
 		}
@@ -232,8 +232,8 @@ SinkFinalizeType BigQueryInsert::Finalize(Pipeline &pipeline, Event &event, Clie
 	if (!gstate.insert_values.empty()) {
 		// perform the final insert
 		auto &transaction = BigQueryTransaction::Get(context, gstate.table.catalog);
-		auto &con = transaction.GetConnection();
-		con.Query(gstate.base_insert_query + gstate.insert_values);
+		//auto &con = transaction.GetConnection();
+		//con.Query(gstate.base_insert_query + gstate.insert_values);
 	}
 	return SinkFinalizeType::READY;
 }
@@ -265,39 +265,40 @@ string BigQueryInsert::ParamsToString() const {
 //===--------------------------------------------------------------------===//
 unique_ptr<PhysicalOperator> AddCastToBigQueryTypes(ClientContext &context, unique_ptr<PhysicalOperator> plan) {
 	// check if we need to cast anything
-	bool require_cast = false;
-	auto &child_types = plan->GetTypes();
-	for (auto &type : child_types) {
-		auto bigquery_type = BigQueryUtils::ToBigQueryType(type);
-		if (bigquery_type != type) {
-			require_cast = true;
-			break;
-		}
-	}
-	if (require_cast) {
-		vector<LogicalType> bigquery_types;
-		vector<unique_ptr<Expression>> select_list;
-		for (idx_t i = 0; i < child_types.size(); i++) {
-			auto &type = child_types[i];
-			unique_ptr<Expression> expr;
-			expr = make_uniq<BoundReferenceExpression>(type, i);
+	// bool require_cast = false;
+	// auto &child_types = plan->GetTypes();
+	// for (auto &type : child_types) {
+	// 	auto bigquery_type = BigQueryUtils::ToBigQueryType(type);
+	// 	if (bigquery_type != type) {
+	// 		require_cast = true;
+	// 		break;
+	// 	}
+	// }
+	// if (require_cast) {
+	// 	vector<LogicalType> bigquery_types;
+	// 	vector<unique_ptr<Expression>> select_list;
+	// 	for (idx_t i = 0; i < child_types.size(); i++) {
+	// 		auto &type = child_types[i];
+	// 		unique_ptr<Expression> expr;
+	// 		expr = make_uniq<BoundReferenceExpression>(type, i);
 
-			auto bigquery_type = BigQueryUtils::ToBigQueryType(type);
-			if (bigquery_type != type) {
-				// add a cast
-				expr = BoundCastExpression::AddCastToType(context, std::move(expr), bigquery_type);
-			}
-			bigquery_types.push_back(std::move(bigquery_type));
-			select_list.push_back(std::move(expr));
-		}
-		// we need to cast: add casts
-		auto proj =
-		    make_uniq<PhysicalProjection>(std::move(bigquery_types), std::move(select_list), plan->estimated_cardinality);
-		proj->children.push_back(std::move(plan));
-		plan = std::move(proj);
-	}
+	// 		auto bigquery_type = BigQueryUtils::ToBigQueryType(type);
+	// 		if (bigquery_type != type) {
+	// 			// add a cast
+	// 			expr = BoundCastExpression::AddCastToType(context, std::move(expr), bigquery_type);
+	// 		}
+	// 		bigquery_types.push_back(std::move(bigquery_type));
+	// 		select_list.push_back(std::move(expr));
+	// 	}
+	// 	// we need to cast: add casts
+	// 	auto proj =
+	// 	    make_uniq<PhysicalProjection>(std::move(bigquery_types), std::move(select_list), plan->estimated_cardinality);
+	// 	proj->children.push_back(std::move(plan));
+	// 	plan = std::move(proj);
+	// }
 
-	return plan;
+	//return plan;
+	return nullptr;
 }
 
 unique_ptr<PhysicalOperator> BigQueryCatalog::PlanInsert(ClientContext &context, LogicalInsert &op,

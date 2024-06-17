@@ -8,6 +8,7 @@ add_library(
   bigquery_execute.cpp
   bigquery_extension.cpp
   bigquery_filter_pushdown.cpp
+  bigquery_query.cpp
   bigquery_scanner.cpp
   bigquery_storage.cpp
   bigquery_utils.cpp)

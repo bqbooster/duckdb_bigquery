@@ -18,11 +18,13 @@ class BigQuerySchemaEntry;
 
 class BigQueryCatalog : public Catalog {
 public:
-	explicit BigQueryCatalog(AttachedDatabase &db_p, const string &path, AccessMode access_mode);
+	explicit BigQueryCatalog(AttachedDatabase &db_p, const string &path, const string &execution_project, AccessMode access_mode);
 	~BigQueryCatalog();
 
 	string path;
 	AccessMode access_mode;
+	string execution_project;
+	string default_schema;
 
 public:
 	void Initialize(bool load_builtin) override;
@@ -62,7 +64,6 @@ private:
 
 private:
 	BigQuerySchemaSet schemas;
-	string default_schema;
 };
 
 } // namespace duckdb

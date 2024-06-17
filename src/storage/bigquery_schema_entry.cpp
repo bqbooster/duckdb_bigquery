@@ -2,6 +2,7 @@
 #include "storage/bigquery_table_entry.hpp"
 #include "storage/bigquery_transaction.hpp"
 #include "duckdb/parser/parsed_data/create_view_info.hpp"
+#include "duckdb/parser/parsed_data/create_schema_info.hpp"
 //#include "duckdb/parser/parsed_data/create_index_info.hpp"
 #include "duckdb/planner/parsed_data/bound_create_table_info.hpp"
 #include "duckdb/parser/parsed_data/drop_info.hpp"
@@ -47,15 +48,15 @@ optional_ptr<CatalogEntry> BigQuerySchemaEntry::CreateFunction(CatalogTransactio
 	throw BinderException("BigQuery databases do not support creating functions");
 }
 
-void BigQueryUnqualifyColumnRef(ParsedExpression &expr) {
-	if (expr.type == ExpressionType::COLUMN_REF) {
-		auto &colref = expr.Cast<ColumnRefExpression>();
-		auto name = std::move(colref.column_names.back());
-		colref.column_names = {std::move(name)};
-		return;
-	}
-	ParsedExpressionIterator::EnumerateChildren(expr, BigQueryUnqualifyColumnRef);
-}
+// void BigQueryUnqualifyColumnRef(ParsedExpression &expr) {
+// 	if (expr.type == ExpressionType::COLUMN_REF) {
+// 		auto &colref = expr.Cast<ColumnRefExpression>();
+// 		auto name = std::move(colref.column_names.back());
+// 		colref.column_names = {std::move(name)};
+// 		return;
+// 	}
+// 	ParsedExpressionIterator::EnumerateChildren(expr, BigQueryUnqualifyColumnRef);
+// }
 
 // string GetBigQueryCreateIndex(CreateIndexInfo &info, TableCatalogEntry &tbl) {
 // 	string sql;
@@ -184,6 +185,7 @@ bool CatalogTypeIsSupported(CatalogType type) {
 
 void BigQuerySchemaEntry::Scan(ClientContext &context, CatalogType type,
                             const std::function<void(CatalogEntry &)> &callback) {
+	Printer::Print("BigQuerySchemaEntry::Scan");
 	if (!CatalogTypeIsSupported(type)) {
 		return;
 	}
@@ -201,6 +203,15 @@ optional_ptr<CatalogEntry> BigQuerySchemaEntry::GetEntry(CatalogTransaction tran
                                                       const string &name) {
 	if (!CatalogTypeIsSupported(type)) {
 		return nullptr;
+	}
+	auto entry = GetCatalogSet(type).GetEntry(transaction.GetContext(), name);
+	if(!entry && type != CatalogType::INDEX_ENTRY) {
+
+		// Let's fake an entry because we can't fetch the catalog with the current BigQuery C++ API
+		auto info = this->GetInfo();
+		auto schema_info = make_uniq<BigQueryTableInfo>(info->schema, name);
+		auto schema_entry = make_uniq<BigQueryTableEntry>(catalog, *this, *schema_info);
+		return GetCatalogSet(type).CreateEntry(std::move(schema_entry));
 	}
 	return GetCatalogSet(type).GetEntry(transaction.GetContext(), name);
 }

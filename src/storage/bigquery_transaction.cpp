@@ -9,7 +9,7 @@ namespace duckdb {
 
 BigQueryTransaction::BigQueryTransaction(BigQueryCatalog &bigquery_catalog, TransactionManager &manager, ClientContext &context)
     : Transaction(manager, context), access_mode(bigquery_catalog.access_mode) {
-	connection = BigQueryConnection::Open(bigquery_catalog.path);
+	//connection = BigQueryConnection::Open(bigquery_catalog.path);
 }
 
 BigQueryTransaction::~BigQueryTransaction() = default;
@@ -20,27 +20,27 @@ void BigQueryTransaction::Start() {
 void BigQueryTransaction::Commit() {
 	if (transaction_state == BigQueryTransactionState::TRANSACTION_STARTED) {
 		transaction_state = BigQueryTransactionState::TRANSACTION_FINISHED;
-		connection.Execute("COMMIT");
+		//connection.Execute("COMMIT");
 	}
 }
 void BigQueryTransaction::Rollback() {
 	if (transaction_state == BigQueryTransactionState::TRANSACTION_STARTED) {
 		transaction_state = BigQueryTransactionState::TRANSACTION_FINISHED;
-		connection.Execute("ROLLBACK");
+		//connection.Execute("ROLLBACK");
 	}
 }
 
-BigQueryConnection &BigQueryTransaction::GetConnection() {
-	if (transaction_state == BigQueryTransactionState::TRANSACTION_NOT_YET_STARTED) {
-		transaction_state = BigQueryTransactionState::TRANSACTION_STARTED;
-		string query = "START TRANSACTION";
-		if (access_mode == AccessMode::READ_ONLY) {
-			query += " READ ONLY";
-		}
-		connection.Execute(query);
-	}
-	return connection;
-}
+// BigQueryConnection &BigQueryTransaction::GetConnection() {
+// 	if (transaction_state == BigQueryTransactionState::TRANSACTION_NOT_YET_STARTED) {
+// 		transaction_state = BigQueryTransactionState::TRANSACTION_STARTED;
+// 		string query = "START TRANSACTION";
+// 		if (access_mode == AccessMode::READ_ONLY) {
+// 			query += " READ ONLY";
+// 		}
+// 		connection.Execute(query);
+// 	}
+// 	return connection;
+// }
 
 unique_ptr<BigQueryResult> BigQueryTransaction::Query(const string &query) {
 	if (transaction_state == BigQueryTransactionState::TRANSACTION_NOT_YET_STARTED) {
@@ -49,10 +49,12 @@ unique_ptr<BigQueryResult> BigQueryTransaction::Query(const string &query) {
 		if (access_mode == AccessMode::READ_ONLY) {
 			transaction_start += " READ ONLY";
 		}
-		connection.Query(transaction_start);
-		return connection.Query(query);
+		//connection.Query(transaction_start);
+		//return connection.Query(query);
+		return nullptr;
 	}
-	return connection.Query(query);
+	//return connection.Query(query);
+	return nullptr;
 }
 
 BigQueryTransaction &BigQueryTransaction::Get(ClientContext &context, Catalog &catalog) {

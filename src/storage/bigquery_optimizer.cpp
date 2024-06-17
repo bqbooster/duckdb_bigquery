@@ -39,13 +39,13 @@ void OptimizeBigQueryScan(unique_ptr<LogicalOperator> &op) {
 			// not a constant or unset offset
 			return;
 		}
-		auto &bind_data = get.bind_data->Cast<BigQueryBindData>();
-		if (limit.limit_val.Type() != LimitNodeType::UNSET) {
-			bind_data.limit += " LIMIT " + to_string(limit.limit_val.GetConstantValue());
-		}
-		if (limit.offset_val.Type() != LimitNodeType::UNSET) {
-			bind_data.limit += " OFFSET " + to_string(limit.offset_val.GetConstantValue());
-		}
+		auto &bind_data = get.bind_data->Cast<BigQueryScanBindData>();
+		// if (limit.limit_val.Type() != LimitNodeType::UNSET) {
+		// 	bind_data.limit += " LIMIT " + to_string(limit.limit_val.GetConstantValue());
+		// }
+		// if (limit.offset_val.Type() != LimitNodeType::UNSET) {
+		// 	bind_data.limit += " OFFSET " + to_string(limit.offset_val.GetConstantValue());
+		// }
 		// remove the limit
 		op = std::move(op->children[0]);
 		return;
@@ -57,7 +57,8 @@ void OptimizeBigQueryScan(unique_ptr<LogicalOperator> &op) {
 }
 
 void BigQueryOptimizer::Optimize(OptimizerExtensionInput &input, unique_ptr<LogicalOperator> &plan){
-	OptimizeBigQueryScan(plan);
+	// TODO - Implement this function as it was written for mysql
+	// OptimizeBigQueryScan(plan);
 }
 
 } // namespace duckdb
