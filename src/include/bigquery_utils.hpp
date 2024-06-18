@@ -9,7 +9,11 @@
 #pragma once
 
 #include "duckdb.hpp"
+#include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
 //#include "bigquery.h"
+
+namespace bigquery_storage = ::google::cloud::bigquery_storage_v1;
+namespace bigquery_storage_read = ::google::cloud::bigquery::storage::v1;
 
 namespace duckdb {
 
@@ -72,6 +76,14 @@ class BigQueryTransaction;
 
 class BigQueryUtils {
 public:
+
+	static optional_ptr<bigquery_storage_read::ReadSession> BigQueryReadTable(
+	const string &execution_project,
+	const string &storage_project,
+	const string &dataset,
+	const string &table,
+	const vector<string> &column_names);
+
 	//static BigQueryConnectionParameters ParseConnectionParameters(const string &dsn);
 	//static BIGQUERY *Connect(const string &dsn);
 

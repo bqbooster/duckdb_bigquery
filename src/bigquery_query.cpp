@@ -12,11 +12,6 @@
 #include "duckdb/main/database_manager.hpp"
 #include "duckdb/main/attached_database.hpp"
 
-#include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
-
-namespace bigquery_storage = ::google::cloud::bigquery_storage_v1;
-namespace bigquery_storage_read = ::google::cloud::bigquery::storage::v1;
-
 namespace duckdb {
 
 //===--------------------------------------------------------------------===//
@@ -63,42 +58,6 @@ static void BigQueryQuery(ClientContext &context, TableFunctionInput &data, Data
 		return;
 	}
 	output.SetCardinality(r);
-}
-
-static optional_ptr<bigquery_storage_read::ReadSession> BigQueryReadTable(
-	const string &execution_project,
-	const string &storage_project,
-	const string &dataset,
-	const string &table,
-	const vector<string> &column_names) {
-		Printer::Print("BigQueryReadTable");
-	 std::string const project_name = "projects/" + execution_project;
-  	// table_name should be in the format:
-  	// "projects/<project-table-resides-in>/datasets/<dataset-table_resides-in>/tables/<table
-  	// name>" The project values in project_name and table_name do not have to be
-  	// identical.
-  	std::string const table_name = "projects/" + storage_project + "/datasets/" + dataset + "/tables/" + table;
-
-	constexpr int max_streams = 1;
-	// Create the ReadSession.
-	auto client = bigquery_storage::BigQueryReadClient(
-		bigquery_storage::MakeBigQueryReadConnection());
-	bigquery_storage_read::ReadSession read_session;
-	read_session.set_data_format(
-		google::cloud::bigquery::storage::v1::DataFormat::ARROW);
-	read_session.set_table(table_name);
-	for (idx_t c = 0; c < column_names.size(); c++) {
-		read_session.mutable_read_options()->add_selected_fields(column_names[c]);
-	}
-	auto session =
-		client.CreateReadSession(project_name, read_session, max_streams);
-	if(session.ok()) {
-		bigquery_storage_read::ReadSession &session_value = session.value();
-		return optional_ptr<bigquery_storage_read::ReadSession>(session_value);
-	}
-	else {
-		return optional_ptr<bigquery_storage_read::ReadSession>();
-	}
 }
 
 static unique_ptr<FunctionData> BigQueryQueryBind(ClientContext &context, TableFunctionBindInput &input,
