@@ -41,6 +41,20 @@ namespace duckdb {
 	}
 }
 
+static optional_ptr<ColumnList> BigQueryReadColumnListForTable(
+	const string &execution_project,
+	const string &storage_project,
+	const string &dataset,
+	const string &table,
+	const vector<string> &column_names) {
+	Printer::Print("BigQueryReadColumnListForTable");
+	auto column_list = make_uniq<ColumnList>();
+	// hope for a miracle so that we can Google C++ API to get the column list with reimplementing everything
+
+	}
+
+
+
 // static bool ParseValue(const string &dsn, idx_t &pos, string &result) {
 // 	// skip leading spaces
 // 	while (pos < dsn.size() && StringUtil::CharacterIsSpace(dsn[pos])) {

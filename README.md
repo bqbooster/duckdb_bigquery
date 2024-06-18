@@ -31,16 +31,25 @@ The main binaries that will be built are:
 - `duckdb_bigquery.duckdb_extension` is the loadable binary as it would be distributed.
 
 ## Running the extension
-To run the extension code, simply start the shell with `./build/release/duckdb`.
+To run the extension code, simply start the shell with `./build/release/duckdb -unsigned`.
 
-Now we can use the features from the extension directly in DuckDB. The template contains a single scalar function `duckdb_bigquery()` that takes a string arguments and returns a string:
+Let's load the library
 ```
-D select duckdb_bigquery('Jane') as result;
+LOAD 'build/release/extension/duckdb_bigquery/duckdb_bigquery.duckdb_extension';
+```
+
+And attach the BigQuery GCP project of your choice
+```
+ATTACH 'my_gcp_bq_storage_project' AS bq (TYPE duckdb_bigquery, EXECUTION_PROJECT 'my_gcp_bq_execution_project'); -- The execution project is optional and fallback to the storage one
+```
+
+D select my_column from bq.my_dataset.my_table;
+
 ┌───────────────┐
-│    result     │
+│    my_column  │
 │    varchar    │
 ├───────────────┤
-│ Duckdb_bigquery Jane 🐥 │
+│ My bq data!   │
 └───────────────┘
 ```
 

@@ -45,10 +45,10 @@ TableFunction BigQueryTableEntry::GetScanFunction(ClientContext &context, unique
 
 	auto result = make_uniq<BigQueryScanBindData>(*this);
 
-	// for (auto &col : columns.Logical()) {
-	// 	result->types.push_back(col.GetType());
-	// 	result->names.push_back(col.GetName());
-	// }
+	for (auto &col : columns.Logical()) {
+		result->column_types.push_back(col.GetType());
+		result->column_names.push_back(col.GetName());
+	}
 
 	bind_data = std::move(result);
 

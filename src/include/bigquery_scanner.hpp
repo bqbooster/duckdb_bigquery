@@ -22,7 +22,7 @@ struct BigQueryScanBindData : public FunctionData {
 
 	BigQueryTableEntry &table;
 	vector<string> column_names;
-	//vector<LogicalType> types;
+	vector<LogicalType> column_types;
 	//string limit;
 
 public:
