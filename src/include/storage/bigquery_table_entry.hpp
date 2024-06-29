@@ -10,7 +10,6 @@
 
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/parser/parsed_data/create_table_info.hpp"
-#include "bigquery_utils.hpp"
 
 namespace duckdb {
 

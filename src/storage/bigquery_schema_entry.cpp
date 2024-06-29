@@ -1,6 +1,7 @@
 #include "storage/bigquery_schema_entry.hpp"
 #include "storage/bigquery_table_entry.hpp"
 #include "storage/bigquery_transaction.hpp"
+
 #include "duckdb/parser/parsed_data/create_view_info.hpp"
 #include "duckdb/parser/parsed_data/create_schema_info.hpp"
 //#include "duckdb/parser/parsed_data/create_index_info.hpp"
@@ -206,12 +207,19 @@ optional_ptr<CatalogEntry> BigQuerySchemaEntry::GetEntry(CatalogTransaction tran
 	}
 	auto entry = GetCatalogSet(type).GetEntry(transaction.GetContext(), name);
 	if(!entry && type != CatalogType::INDEX_ENTRY) {
+		Printer::Print("BigQuerySchemaEntry::GetEntry not found creating");
 
-		// Let's fake an entry because we can't fetch the catalog with the current BigQuery C++ API
 		auto info = this->GetInfo();
-		auto schema_info = make_uniq<BigQueryTableInfo>(info->schema, name);
-		auto schema_entry = make_uniq<BigQueryTableEntry>(catalog, *this, *schema_info);
-		return GetCatalogSet(type).CreateEntry(std::move(schema_entry));
+		auto table_entry = BigQueryUtils::BigQueryCreateBigQueryTableEntry(
+			catalog,
+			this,
+			"teads-exploration",
+			this->name,
+			info->schema,
+			name);
+		return GetCatalogSet(type).CreateEntry(std::move(table_entry));
+		//return nullptr;
+		//auto table_entry = make_uniq<BigQueryTableEntry>(catalog, *this, *table_info);
 	}
 	return GetCatalogSet(type).GetEntry(transaction.GetContext(), name);
 }

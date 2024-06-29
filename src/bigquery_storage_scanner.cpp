@@ -1,18 +1,18 @@
 #include "duckdb.hpp"
 
-#include "duckdb/main/extension_util.hpp"
-#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "bigquery_storage_scanner.hpp"
 #include "bigquery_query.hpp"
 #include "bigquery_result.hpp"
 #include "bigquery_utils.hpp"
+#include "bigquery_filter_pushdown.hpp"
 #include "storage/bigquery_catalog.hpp"
 #include "storage/bigquery_transaction.hpp"
 #include "storage/bigquery_table_set.hpp"
-#include "bigquery_filter_pushdown.hpp"
+
+#include "duckdb/main/extension_util.hpp"
+#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/main/database_manager.hpp"
 #include "duckdb/main/attached_database.hpp"
-
 #include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
 
 namespace bigquery_storage = ::google::cloud::bigquery_storage_v1;
@@ -44,7 +44,6 @@ static unique_ptr<GlobalTableFunctionState> BigQueryInitGlobalState(ClientContex
                                                                  TableFunctionInitInput &input) {
 	Printer::Print("BigQueryInitGlobalState");
 	auto &bind_data = input.bind_data->Cast<BigQueryStorageScannerBindData>();
-	vector<string> empty_vector;
 
 	auto column_list = BigQueryUtils::BigQueryReadColumnListForTable(
 	bind_data.execution_project,

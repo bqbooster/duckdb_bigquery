@@ -13,6 +13,7 @@
 #include "storage/bigquery_index_set.hpp"
 
 namespace duckdb {
+class BigQueryTableEntry;
 class BigQueryTransaction;
 
 class BigQuerySchemaEntry : public SchemaCatalogEntry {
