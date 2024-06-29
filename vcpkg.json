@@ -6,7 +6,9 @@
     {
       "name": "google-cloud-cpp",
       "default-features": false,
-      "features": ["bigquery"]
-    }
+      "features": ["bigquery", "grpc-common", "storage"]
+    },
+    "cpprestsdk",
+    "nlohmann-json"
   ]
 }

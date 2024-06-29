@@ -10,6 +10,7 @@
 
 #include "duckdb.hpp"
 #include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
+#include "bigquery_result.hpp"
 //#include "bigquery.h"
 
 namespace bigquery_storage = ::google::cloud::bigquery_storage_v1;
@@ -77,18 +78,24 @@ class BigQueryTransaction;
 class BigQueryUtils {
 public:
 
-	static optional_ptr<bigquery_storage_read::ReadSession> BigQueryReadTable(
+	static optional_ptr<BigQueryResult> BigQueryReadTable(
 	const string &execution_project,
 	const string &storage_project,
 	const string &dataset,
 	const string &table,
 	const vector<string> &column_names);
 
+	static optional_ptr<ColumnList> BigQueryReadColumnListForTable(
+	const string &execution_project,
+	const string &storage_project,
+	const string &dataset,
+	const string &table);
+
 	//static BigQueryConnectionParameters ParseConnectionParameters(const string &dsn);
 	//static BIGQUERY *Connect(const string &dsn);
 
 	//static LogicalType ToBigQueryType(const LogicalType &input);
-	//static LogicalType TypeToLogicalType(ClientContext &context, const BigQueryTypeData &input);
+	static LogicalType TypeToLogicalType(const std::string &bq_type);
 	//static LogicalType FieldToLogicalType(ClientContext &context, BIGQUERY_FIELD *field);
 	// static string TypeToString(const LogicalType &input);
 

@@ -2,10 +2,19 @@
 #include "storage/bigquery_schema_entry.hpp"
 #include "storage/bigquery_transaction.hpp"
 #include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
+#include <google/cloud/credentials.h>
+#include <google/cloud/status_or.h>
+#include <google/cloud/storage/oauth2/google_credentials.h>
+#include <nlohmann/json.hpp>
+#include <cpprest/http_client.h>
+#include <cpprest/filestream.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 namespace duckdb {
 
-	static optional_ptr<bigquery_storage_read::ReadSession> BigQueryReadTable(
+	static optional_ptr<BigQueryResult> BigQueryReadTable(
 	const string &execution_project,
 	const string &storage_project,
 	const string &dataset,
@@ -34,26 +43,131 @@ namespace duckdb {
 		client.CreateReadSession(project_name, read_session, max_streams);
 	if(session.ok()) {
 		bigquery_storage_read::ReadSession &session_value = session.value();
-		return optional_ptr<bigquery_storage_read::ReadSession>(session_value);
+		BigQueryResult bq_result = BigQueryResult(session_value, client);
+		return optional_ptr<BigQueryResult>(bq_result);
 	}
 	else {
-		return optional_ptr<bigquery_storage_read::ReadSession>();
+		return optional_ptr<BigQueryResult>();
 	}
+}
+
+namespace gcs = google::cloud::storage;
+namespace gcpoauth2 = google::cloud::storage::oauth2;
+using namespace web::http;
+using namespace web::http::client;
+using namespace concurrency::streams;
+using json = nlohmann::json;
+
+struct Field {
+    std::string name;
+    std::string type;
+};
+
+std::vector<Field> extractFields(const std::string& jsonString, duckdb::unique_ptr<duckdb::ColumnList> column_list) {
+    // Parse the JSON string
+    json j = json::parse(jsonString);
+
+    // Extract the fields
+    std::vector<Field> fields;
+    for (const auto& field : j["schema"]["fields"]) {
+        fields.push_back({field["name"], field["type"]});
+    }
+
+    return fields;
+}
+
+std::string GetAccessToken() {
+
+    auto credentials = gcpoauth2::GoogleDefaultCredentials();
+    if (!credentials) {
+        throw std::runtime_error("Failed to create credentials: " + credentials.status().message());
+    }
+
+    auto token = credentials.value()->AuthorizationHeader();
+    if (!token) {
+        throw std::runtime_error("Failed to obtain access token: " + token.status().message());
+    }
+
+    // Remove the "Authorization: Bearer " prefix
+    return token->substr(21);
 }
 
 static optional_ptr<ColumnList> BigQueryReadColumnListForTable(
 	const string &execution_project,
 	const string &storage_project,
 	const string &dataset,
-	const string &table,
-	const vector<string> &column_names) {
+	const string &table) {
 	Printer::Print("BigQueryReadColumnListForTable");
 	auto column_list = make_uniq<ColumnList>();
 	// hope for a miracle so that we can Google C++ API to get the column list with reimplementing everything
+	//TODO: implement this
 
+	try {
+        std::string access_token = GetAccessToken();
+
+        // Create HTTP client
+        http_client client(U("https://bigquery.googleapis.com"));
+
+        // Create request URI
+        uri_builder builder(U("/bigquery/v2/projects/"));
+        builder.append_path(storage_project);
+        builder.append_path(U("datasets"));
+        builder.append_path(dataset);
+        builder.append_path(U("tables"));
+        builder.append_path(table);
+
+        // Create and send request
+        http_request request(methods::GET);
+        request.headers().add(U("Authorization"), U("Bearer ") + utility::conversions::to_string_t(access_token));
+        request.set_request_uri(builder.to_uri());
+
+        pplx::task<void> requestTask = client.request(request)
+            .then([](http_response response) {
+                if (response.status_code() == status_codes::OK) {
+                    return response.extract_json();
+                }
+                return pplx::task_from_result(web::json::value());
+            })
+            .then([&column_list](pplx::task<web::json::value> previousTask) {
+                try {
+                    web::json::value const& v = previousTask.get();
+                    std::string str = v.serialize();
+                    std::cout << "v : " << str << std::endl;
+
+					// Parse the JSON string
+				    json j = json::parse(str);
+					// Extract the fields
+
+					// Extract the fields
+					for (const auto& field : j["schema"]["fields"]) {
+						auto field_type = BigQueryUtils::TypeToLogicalType(field["type"]);
+						column_list->AddColumn(ColumnDefinition(
+							field["name"],
+							 field_type));
+					}
+
+                    for (const auto& field : column_list->GetColumnNames()) {
+                        std::cout << field << std::endl;
+                    }
+                }
+                catch (http_exception const& e) {
+                    std::wcout << e.what() << std::endl;
+                }
+            });
+
+        // Wait for all the outstanding I/O to complete and handle any exceptions
+        try {
+            requestTask.wait();
+        }
+        catch (const std::exception &e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+        return column_list;
+    }
+	return column_list;
 	}
-
-
 
 // static bool ParseValue(const string &dsn, idx_t &pos, string &result) {
 // 	// skip leading spaces
@@ -246,95 +360,42 @@ BIGQUERY *BigQueryUtils::Connect(const string &dsn) {
 // 	}
 // }
 
-// LogicalType BigQueryUtils::TypeToLogicalType(ClientContext &context, const BigQueryTypeData &type_info) {
-// 	if (type_info.type_name == "tinyint") {
-// 		if (type_info.column_type == "tinyint(1)") {
-// 			Value tinyint_as_boolean;
-// 			if (context.TryGetCurrentSetting("bigquery_tinyint1_as_boolean", tinyint_as_boolean)) {
-// 				if (BooleanValue::Get(tinyint_as_boolean)) {
-// 					return LogicalType::BOOLEAN;
-// 				}
-// 			}
-// 		}
-// 		if (StringUtil::Contains(type_info.column_type, "unsigned")) {
-// 			return LogicalType::UTINYINT;
-// 		} else {
-// 			return LogicalType::TINYINT;
-// 		}
-// 	} else if (type_info.type_name == "smallint") {
-// 		if (StringUtil::Contains(type_info.column_type, "unsigned")) {
-// 			return LogicalType::USMALLINT;
-// 		} else {
-// 			return LogicalType::SMALLINT;
-// 		}
-// 	} else if (type_info.type_name == "mediumint" || type_info.type_name == "int") {
-// 		if (StringUtil::Contains(type_info.column_type, "unsigned")) {
-// 			return LogicalType::UINTEGER;
-// 		} else {
-// 			return LogicalType::INTEGER;
-// 		}
-// 	} else if (type_info.type_name == "bigint") {
-// 		if (StringUtil::Contains(type_info.column_type, "unsigned")) {
-// 			return LogicalType::UBIGINT;
-// 		} else {
-// 			return LogicalType::BIGINT;
-// 		}
-// 	} else if (type_info.type_name == "float") {
-// 		return LogicalType::FLOAT;
-// 	} else if (type_info.type_name == "double") {
-// 		return LogicalType::DOUBLE;
-// 	} else if (type_info.type_name == "date") {
-// 		return LogicalType::DATE;
-// 	} else if (type_info.type_name == "time") {
-// 		// we need to convert time to VARCHAR because TIME in BigQuery is more like an
-// 		// interval and can store ranges between -838:00:00 to 838:00:00
-// 		return LogicalType::VARCHAR;
-// 	} else if (type_info.type_name == "timestamp") {
-// 		// in BigQuery, "timestamp" columns are timezone aware while "datetime" columns
-// 		// are not
-// 		return LogicalType::TIMESTAMP_TZ;
-// 	} else if (type_info.type_name == "year") {
-// 		return LogicalType::INTEGER;
-// 	} else if (type_info.type_name == "datetime") {
-// 		return LogicalType::TIMESTAMP;
-// 	} else if (type_info.type_name == "decimal") {
-// 		if (type_info.precision > 0 && type_info.precision <= 38) {
-// 			return LogicalType::DECIMAL(type_info.precision, type_info.scale);
-// 		}
-// 		return LogicalType::DOUBLE;
-// 	} else if (type_info.type_name == "json") {
-// 		// FIXME
-// 		return LogicalType::VARCHAR;
-// 	} else if (type_info.type_name == "enum") {
-// 		// FIXME: we can actually retrieve the enum values from the column_type
-// 		return LogicalType::VARCHAR;
-// 	} else if (type_info.type_name == "set") {
-// 		// FIXME: set is essentially a list of enum
-// 		return LogicalType::VARCHAR;
-// 	} else if (type_info.type_name == "bit") {
-// 		if (type_info.column_type == "bit(1)") {
-// 			Value bit_as_boolean;
-// 			if (context.TryGetCurrentSetting("bigquery_bit1_as_boolean", bit_as_boolean)) {
-// 				if (BooleanValue::Get(bit_as_boolean)) {
-// 					return LogicalType::BOOLEAN;
-// 				}
-// 			}
-// 		}
-// 		return LogicalType::BLOB;
-// 	} else if (type_info.type_name == "blob" || type_info.type_name == "binary" || type_info.type_name == "varbinary" ||
-// 	           type_info.type_name == "geometry" || type_info.type_name == "point" ||
-// 	           type_info.type_name == "linestring" || type_info.type_name == "polygon" ||
-// 	           type_info.type_name == "multipoint" || type_info.type_name == "multilinestring" ||
-// 	           type_info.type_name == "multipolygon" || type_info.type_name == "geomcollection") {
-// 		return LogicalType::BLOB;
-// 	} else if (type_info.type_name == "varchar" || type_info.type_name == "mediumtext" ||
-// 	           type_info.type_name == "longtext" || type_info.type_name == "text" || type_info.type_name == "enum" ||
-// 	           type_info.type_name == "char") {
-// 		return LogicalType::VARCHAR;
-// 	}
-// 	// fallback for unknown types
-// 	return LogicalType::VARCHAR;
-// }
+LogicalType BigQueryUtils::TypeToLogicalType(const std::string &bq_type) {
+    if (bq_type == "INTEGER") {
+        return LogicalType::BIGINT;
+    } else if (bq_type == "FLOAT64") {
+        return LogicalType::DOUBLE;
+    } else if (bq_type == "DATE") {
+        return LogicalType::DATE;
+    } else if (bq_type == "TIME") {
+        // we need to convert time to VARCHAR because TIME in BigQuery is more like an
+        // interval and can store ranges between -838:00:00 to 838:00:00
+        return LogicalType::VARCHAR;
+    } else if (bq_type == "TIMESTAMP") {
+        // in BigQuery, "timestamp" columns are timezone aware while "datetime" columns
+        // are not
+        return LogicalType::TIMESTAMP_TZ;
+    } else if (bq_type == "YEAR") {
+        return LogicalType::INTEGER;
+    } else if (bq_type == "DATETIME") {
+        return LogicalType::TIMESTAMP;
+    } else if (bq_type == "NUMERIC" || bq_type == "BIGNUMERIC") {
+        // BigQuery NUMERIC and BIGNUMERIC types can have a precision up to 38 and a scale up to 9
+        // Assume a default precision and scale for this example; these could be parameterized if needed
+        return LogicalType::DECIMAL(38, 9);
+    } else if (bq_type == "JSON") {
+        // FIXME
+        return LogicalType::VARCHAR;
+    } else if (bq_type == "BYTES") {
+        return LogicalType::BLOB;
+    } else if (bq_type == "STRING") {
+        return LogicalType::VARCHAR;
+    }
+	std::cout << "Unknown type: " << bq_type << std::endl;
+    // fallback for unknown types
+    return LogicalType::VARCHAR;
+}
+
 
 /*
 LogicalType BigQueryUtils::FieldToLogicalType(ClientContext &context, BIGQUERY_FIELD *field) {
