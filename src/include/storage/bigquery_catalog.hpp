@@ -24,7 +24,7 @@ public:
 	string path;
 	AccessMode access_mode;
 	string execution_project;
-	string default_schema;
+	string storage_project;
 
 public:
 	void Initialize(bool load_builtin) override;

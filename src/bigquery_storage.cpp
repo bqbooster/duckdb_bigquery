@@ -76,7 +76,7 @@ static unique_ptr<Catalog> BigQueryAttach(StorageExtensionInfo *storage_info, Cl
 	Printer::Print("execution_project: " + execution_project + "\n");
 	Printer::Print("database: " + database + "\n");
 
-	return make_uniq<BigQueryCatalog>(db, execution_project, database, access_mode);
+	return make_uniq<BigQueryCatalog>(db, database, execution_project, access_mode);
 }
 
 static unique_ptr<TransactionManager> BigQueryCreateTransactionManager(StorageExtensionInfo *storage_info,

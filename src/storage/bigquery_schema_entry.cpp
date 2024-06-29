@@ -1,6 +1,7 @@
 #include "storage/bigquery_schema_entry.hpp"
 #include "storage/bigquery_table_entry.hpp"
 #include "storage/bigquery_transaction.hpp"
+#include "storage/bigquery_catalog.hpp"
 
 #include "duckdb/parser/parsed_data/create_view_info.hpp"
 #include "duckdb/parser/parsed_data/create_schema_info.hpp"
@@ -208,18 +209,24 @@ optional_ptr<CatalogEntry> BigQuerySchemaEntry::GetEntry(CatalogTransaction tran
 	auto entry = GetCatalogSet(type).GetEntry(transaction.GetContext(), name);
 	if(!entry && type != CatalogType::INDEX_ENTRY) {
 		Printer::Print("BigQuerySchemaEntry::GetEntry not found creating");
+		// cast catalog to BigQueryCatalog
+		auto bq_catalog = dynamic_cast<BigQueryCatalog*>(&this->catalog);
 
 		auto info = this->GetInfo();
 		auto table_entry = BigQueryUtils::BigQueryCreateBigQueryTableEntry(
 			catalog,
 			this,
-			"teads-exploration",
+			bq_catalog->execution_project,
+			bq_catalog->storage_project,
 			this->name,
-			info->schema,
 			name);
+		Printer::Print("BigQuerySchemaEntry::GetEntry creating table entry");
+		// print the columns from create_info inside table_info
+		auto &columns = table_entry->GetColumns();
+		for (auto &col : columns.GetColumnNames()) {
+			Printer::Print("BigQuerySchemaEntry::GetEntry column: " + col);
+		}
 		return GetCatalogSet(type).CreateEntry(std::move(table_entry));
-		//return nullptr;
-		//auto table_entry = make_uniq<BigQueryTableEntry>(catalog, *this, *table_info);
 	}
 	return GetCatalogSet(type).GetEntry(transaction.GetContext(), name);
 }

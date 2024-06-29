@@ -50,10 +50,21 @@ unique_ptr<BigQueryTableEntry> BigQueryUtils::BigQueryCreateBigQueryTableEntry(
 	if (!column_list) {
 		return nullptr;
 	}
+	// print size of columns
+	auto column_list_size = column_list->GetColumnNames().size();
+	Printer::Print("column_list_size size: " + to_string(column_list_size));
+
 	Printer::Print("column_list done");
 	auto table_info = make_uniq<BigQueryTableInfo>(dataset, table);
-	//auto columns_table_info = table_info.get()->create_info.get()->columns;
-	//column_list.get()->CopyInto(&columns_table_info);
+	auto &create_info = table_info->create_info;
+	auto &columns = create_info->columns;
+	for (auto &col_name : column_list->GetColumnNames()) {
+		auto &column_def = column_list->GetColumn(col_name);
+		columns.AddColumn(column_def.Copy());
+	}
+	// print size of columns
+	auto column_size = columns.GetColumnNames().size();
+	Printer::Print("columns size: " + to_string(column_size));
 	auto table_entry = make_uniq<BigQueryTableEntry>(catalog, *schema_entry, *table_info);
 	return table_entry;
 }
@@ -64,79 +75,69 @@ optional_ptr<ColumnList> BigQueryUtils::BigQueryReadColumnListForTable(
 	const string &dataset,
 	const string &table) {
 	Printer::Print("BigQueryReadColumnListForTable for execution_project: " + execution_project + " storage_project: " + storage_project + " dataset: " + dataset + " table: " + table);
-	auto column_list = make_uniq<ColumnList>();
-	// hope for a miracle so that we can Google C++ API to get the column list with reimplementing everything
-	//TODO: implement this
 
+	std::string access_token = GetAccessToken();
+
+	Printer::Print("Access token: " + access_token);
+
+	// Create HTTP client
+	http_client client(U("https://bigquery.googleapis.com"));
+
+	// Create request URI
+	uri_builder builder(U("/bigquery/v2/projects/"));
+	builder.append_path(storage_project);
+	builder.append_path(U("datasets"));
+	builder.append_path(dataset);
+	builder.append_path(U("tables"));
+	builder.append_path(table);
+
+	Printer::Print("Requesting: " + builder.to_string());
+
+	// Create and send request
+	http_request request(methods::GET);
+	request.headers().add(U("Authorization"), U("Bearer ") + utility::conversions::to_string_t(access_token));
+	request.set_request_uri(builder.to_uri());
+
+	pplx::task<ColumnList> requestTask = client.request(request)
+		.then([](http_response response) -> pplx::task<ColumnList> {
+		if (response.status_code() == status_codes::OK) {
+			return response.extract_json()
+			.then([](web::json::value const& v) -> ColumnList {
+				std::string str = v.serialize();
+				Printer::Print("received JSON: " + str);
+
+				// Parse the JSON string
+				json j = json::parse(str);
+
+				// Extract the fields
+				auto column_list = ColumnList();
+				for (const auto& field : j["schema"]["fields"]) {
+				auto field_type = BigQueryUtils::TypeToLogicalType(field["type"]);
+				column_list.AddColumn(ColumnDefinition(
+					field["name"],
+					field_type));
+				}
+
+				for (const auto& field : column_list.GetColumnNames()) {
+				Printer::Print("field: " + field);
+				}
+
+				return column_list;
+			});
+		}
+		return pplx::task_from_result(ColumnList());
+		});
+
+	// Wait for all the outstanding I/O to complete and handle any exceptions
 	try {
-        std::string access_token = GetAccessToken();
-
-		Printer::Print("Access token: " + access_token);
-
-        // Create HTTP client
-        http_client client(U("https://bigquery.googleapis.com"));
-
-        // Create request URI
-        uri_builder builder(U("/bigquery/v2/projects/"));
-        builder.append_path(storage_project);
-        builder.append_path(U("datasets"));
-        builder.append_path(dataset);
-        builder.append_path(U("tables"));
-        builder.append_path(table);
-
-		Printer::Print("Requesting: " + builder.to_string());
-
-        // Create and send request
-        http_request request(methods::GET);
-        request.headers().add(U("Authorization"), U("Bearer ") + utility::conversions::to_string_t(access_token));
-        request.set_request_uri(builder.to_uri());
-
-        pplx::task<void> requestTask = client.request(request)
-            .then([](http_response response) {
-                if (response.status_code() == status_codes::OK) {
-                    return response.extract_json();
-                }
-                return pplx::task_from_result(web::json::value());
-            })
-            .then([&column_list](pplx::task<web::json::value> previousTask) {
-                try {
-                    web::json::value const& v = previousTask.get();
-                    std::string str = v.serialize();
-					Printer::Print("received JSON: " + str);
-
-					// Parse the JSON string
-				    json j = json::parse(str);
-					// Extract the fields
-
-					// Extract the fields
-					for (const auto& field : j["schema"]["fields"]) {
-						auto field_type = BigQueryUtils::TypeToLogicalType(field["type"]);
-						column_list->AddColumn(ColumnDefinition(
-							field["name"],
-							 field_type));
-					}
-
-                    for (const auto& field : column_list->GetColumnNames()) {
-                        std::cout << field << std::endl;
-                    }
-                }
-                catch (http_exception const& e) {
-                    std::wcout << e.what() << std::endl;
-                }
-            });
-
-        // Wait for all the outstanding I/O to complete and handle any exceptions
-        try {
-            requestTask.wait();
-        }
-        catch (const std::exception &e) {
-            std::cerr << "Error: " << e.what() << std::endl;
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
-        return column_list;
-    }
-	return column_list;
+		auto column_list = requestTask.get();
+		return column_list;
+	}
+	catch (const std::exception &e) {
+		Printer::Print("Error: " + std::string(e.what()));
+		return unique_ptr<ColumnList>();
+	}
+	return unique_ptr<ColumnList>();
 }
 
 unique_ptr<BigQueryResult> BigQueryUtils::BigQueryReadTable(
@@ -178,7 +179,7 @@ unique_ptr<BigQueryResult> BigQueryUtils::BigQueryReadTable(
 LogicalType BigQueryUtils::TypeToLogicalType(const std::string &bq_type) {
     if (bq_type == "INTEGER") {
         return LogicalType::BIGINT;
-    } else if (bq_type == "FLOAT64") {
+    } else if (bq_type == "FLOAT") {
         return LogicalType::DOUBLE;
     } else if (bq_type == "DATE") {
         return LogicalType::DATE;
@@ -205,8 +206,10 @@ LogicalType BigQueryUtils::TypeToLogicalType(const std::string &bq_type) {
         return LogicalType::BLOB;
     } else if (bq_type == "STRING") {
         return LogicalType::VARCHAR;
-    }
-	std::cout << "Unknown type: " << bq_type << std::endl;
+    } else if(bq_type == "BOOLEAN") {
+		return LogicalType::BOOLEAN;
+	}
+	Printer::Print("Unknown type: " + bq_type);
     // fallback for unknown types
     return LogicalType::VARCHAR;
 }

@@ -9,9 +9,9 @@
 
 namespace duckdb {
 
-BigQueryCatalog::BigQueryCatalog(AttachedDatabase &db_p, const string &path, const string &execution_project, AccessMode access_mode)
-    : Catalog(db_p), path(path), access_mode(access_mode), schemas(*this) {
-	default_schema = path;
+BigQueryCatalog::BigQueryCatalog(AttachedDatabase &db_p, const string &storage_project, const string &execution_project, AccessMode access_mode)
+    : Catalog(db_p), path(storage_project), access_mode(access_mode), schemas(*this) {
+	this->storage_project = storage_project;
 	this->execution_project = execution_project;
 	// try to connect
 	//auto connection = BigQueryConnection::Open(path);
@@ -47,28 +47,30 @@ void BigQueryCatalog::ScanSchemas(ClientContext &context, std::function<void(Sch
 	schemas.Scan(context, [&](CatalogEntry &schema) { callback(schema.Cast<BigQuerySchemaEntry>()); });
 }
 
-optional_ptr<SchemaCatalogEntry> BigQueryCatalog::GetSchema(CatalogTransaction transaction, const string &schema_name,
-                                                         OnEntryNotFound if_not_found,
-                                                         QueryErrorContext error_context) {
+optional_ptr<SchemaCatalogEntry> BigQueryCatalog::GetSchema(CatalogTransaction transaction,
+															const string &schema_name,
+                                                         	OnEntryNotFound if_not_found,
+                                                         	QueryErrorContext error_context) {
 	Printer::Print("BigQueryCatalog::GetSchema " + schema_name);
-	if (schema_name == DEFAULT_SCHEMA) {
-		if (default_schema.empty()) {
-			throw InvalidInputException("Attempting to fetch the default schema - but no database was "
-			                            "provided in the connection string");
-		}
-		return GetSchema(transaction, default_schema, if_not_found, error_context);
-	}
+	// if (schema_name == DEFAULT_SCHEMA) {
+	// 	if (default_schema.empty()) {
+	// 		throw InvalidInputException("Attempting to fetch the default schema - but no database was "
+	// 		                            "provided in the connection string");
+	// 	}
+	// 	return GetSchema(transaction, default_schema, if_not_found, error_context);
+	// }
 	auto entry = schemas.GetEntry(transaction.GetContext(), schema_name);
 	// print entry
 	if (!entry && if_not_found != OnEntryNotFound::RETURN_NULL) {
 		throw BinderException("Schema with name \"%s\" not found", schema_name);
 	} else if(!entry) {
-		Printer::Print("BigQueryCatalog::GetSchema not found creating");
+		Printer::Print("BigQueryCatalog::GetSchema not found creating for " + schema_name);
 		auto schema_info = make_uniq<CreateSchemaInfo>();
+		schema_info->catalog = this->storage_project;
 		schema_info->schema = schema_name;
 		auto schema_entry = make_uniq<BigQuerySchemaEntry>(*this, *schema_info);
  		schemas.CreateEntry(std::move(schema_entry));
-		return GetSchema(transaction, default_schema, if_not_found, error_context);
+		return GetSchema(transaction, schema_name, if_not_found, error_context);
 	}
 	Printer::Print("BigQueryCatalog::GetSchema found");
 	return reinterpret_cast<SchemaCatalogEntry *>(entry.get());
