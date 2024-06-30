@@ -57,10 +57,6 @@ static void LoadInternal(DatabaseInstance &db) {
 	BigQueryQueryFunction query_function;
 	ExtensionUtil::RegisterFunction(db, query_function);
 
-	// Scan function TODO clean up, just for test
-	BigQueryScanFunction scan_function;
-	ExtensionUtil::RegisterFunction(db, scan_function);
-
 	// Support secret manager
 	SecretType secret_type;
 	secret_type.name = "bigquery";

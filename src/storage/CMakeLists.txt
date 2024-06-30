@@ -9,6 +9,7 @@ add_library(
   bigquery_index_set.cpp
   bigquery_insert.cpp
   bigquery_optimizer.cpp
+  bigquery_result.cpp
   bigquery_schema_entry.cpp
   bigquery_schema_set.cpp
   bigquery_table_entry.cpp

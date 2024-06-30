@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.20)
 
 set(TARGET_NAME duckdb_bigquery)
 project(${TARGET_NAME})
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 20)
+#set(CMAKE_CXX_STANDARD 14)
 
 find_package(google_cloud_cpp_bigquery REQUIRED)
 find_package(google_cloud_cpp_common REQUIRED)
@@ -10,6 +11,7 @@ find_package(google_cloud_cpp_grpc_utils REQUIRED)
 find_package(google_cloud_cpp_storage REQUIRED)
 find_package(cpprestsdk REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(Arrow REQUIRED)
 find_package(Threads)
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
@@ -32,4 +34,6 @@ google-cloud-cpp::bigquery google-cloud-cpp::common
 google-cloud-cpp::grpc_utils google-cloud-cpp::storage
 cpprestsdk::cpprest
 nlohmann_json::nlohmann_json
-Threads::Threads)
+Threads::Threads
+Arrow::arrow_static
+)

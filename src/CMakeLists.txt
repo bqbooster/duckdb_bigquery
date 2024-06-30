@@ -10,7 +10,6 @@ add_library(
   bigquery_filter_pushdown.cpp
   bigquery_query.cpp
   bigquery_scanner.cpp
-  bigquery_storage_scanner.cpp
   bigquery_storage.cpp
   bigquery_utils.cpp)
 

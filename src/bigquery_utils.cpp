@@ -13,6 +13,13 @@
 #include <fstream>
 #include <sstream>
 
+#include <arrow/api.h>
+#include <arrow/array/data.h>
+#include <arrow/io/memory.h>
+#include <arrow/ipc/api.h>
+#include <arrow/record_batch.h>
+#include <arrow/status.h>
+
 namespace bigquery_storage = ::google::cloud::bigquery_storage_v1;
 namespace bigquery_storage_read = ::google::cloud::bigquery::storage::v1;
 namespace gcs = google::cloud::storage;
@@ -47,20 +54,20 @@ unique_ptr<BigQueryTableEntry> BigQueryUtils::BigQueryCreateBigQueryTableEntry(
 	Printer::Print("BigQueryReadTableEntry for execution_project: " + execution_project + " storage_project: " + storage_project + " dataset: " + dataset + " table: " + table);
 	auto column_list = BigQueryUtils::BigQueryReadColumnListForTable(
 		execution_project, storage_project, dataset, table);
-	if (!column_list) {
+	if (column_list.size() == 0) {
 		return nullptr;
 	}
 	// print size of columns
-	auto column_list_size = column_list->GetColumnNames().size();
+	auto column_list_size = column_list.size();
 	Printer::Print("column_list_size size: " + to_string(column_list_size));
 
 	Printer::Print("column_list done");
 	auto table_info = make_uniq<BigQueryTableInfo>(dataset, table);
 	auto &create_info = table_info->create_info;
 	auto &columns = create_info->columns;
-	for (auto &col_name : column_list->GetColumnNames()) {
-		auto &column_def = column_list->GetColumn(col_name);
-		columns.AddColumn(column_def.Copy());
+	for (auto &col : column_list) {
+		ColumnDefinition column(std::move(col.name), std::move(col.type));
+		columns.AddColumn(std::move(column));
 	}
 	// print size of columns
 	auto column_size = columns.GetColumnNames().size();
@@ -69,75 +76,75 @@ unique_ptr<BigQueryTableEntry> BigQueryUtils::BigQueryCreateBigQueryTableEntry(
 	return table_entry;
 }
 
-optional_ptr<ColumnList> BigQueryUtils::BigQueryReadColumnListForTable(
-	const string &execution_project,
-	const string &storage_project,
-	const string &dataset,
-	const string &table) {
-	Printer::Print("BigQueryReadColumnListForTable for execution_project: " + execution_project + " storage_project: " + storage_project + " dataset: " + dataset + " table: " + table);
+	vector<BQField> BigQueryUtils::BigQueryReadColumnListForTable(
+    const std::string &execution_project,
+    const std::string &storage_project,
+    const std::string &dataset,
+    const std::string &table) {
+    Printer::Print("BigQueryReadColumnListForTable for execution_project: " + execution_project + " storage_project: " + storage_project + " dataset: " + dataset + " table: " + table);
 
-	std::string access_token = GetAccessToken();
+    std::string access_token = GetAccessToken();
 
-	Printer::Print("Access token: " + access_token);
+    Printer::Print("Access token: " + access_token);
 
-	// Create HTTP client
-	http_client client(U("https://bigquery.googleapis.com"));
+    // Create HTTP client
+    http_client client(U("https://bigquery.googleapis.com"));
 
-	// Create request URI
-	uri_builder builder(U("/bigquery/v2/projects/"));
-	builder.append_path(storage_project);
-	builder.append_path(U("datasets"));
-	builder.append_path(dataset);
-	builder.append_path(U("tables"));
-	builder.append_path(table);
+    // Create request URI
+    uri_builder builder(U("/bigquery/v2/projects/"));
+    builder.append_path(storage_project);
+    builder.append_path(U("datasets"));
+    builder.append_path(dataset);
+    builder.append_path(U("tables"));
+    builder.append_path(table);
 
-	Printer::Print("Requesting: " + builder.to_string());
+    Printer::Print("Requesting: " + builder.to_string());
 
-	// Create and send request
-	http_request request(methods::GET);
-	request.headers().add(U("Authorization"), U("Bearer ") + utility::conversions::to_string_t(access_token));
-	request.set_request_uri(builder.to_uri());
+    // Create and send request
+    http_request request(methods::GET);
+    request.headers().add(U("Authorization"), U("Bearer ") + utility::conversions::to_string_t(access_token));
+    request.set_request_uri(builder.to_uri());
 
-	pplx::task<ColumnList> requestTask = client.request(request)
-		.then([](http_response response) -> pplx::task<ColumnList> {
-		if (response.status_code() == status_codes::OK) {
-			return response.extract_json()
-			.then([](web::json::value const& v) -> ColumnList {
-				std::string str = v.serialize();
-				Printer::Print("received JSON: " + str);
+    pplx::task<vector<BQField>> requestTask = client.request(request)
+        .then([](http_response response) -> pplx::task<vector<BQField>> {
+        if (response.status_code() == status_codes::OK) {
+            return response.extract_json()
+            .then([](web::json::value const& v) -> vector<BQField> {
+                std::string str = v.serialize();
+                Printer::Print("received JSON: " + str);
 
-				// Parse the JSON string
-				json j = json::parse(str);
+                // Parse the JSON string
+                json j = json::parse(str);
 
-				// Extract the fields
-				auto column_list = ColumnList();
-				for (const auto& field : j["schema"]["fields"]) {
-				auto field_type = BigQueryUtils::TypeToLogicalType(field["type"]);
-				column_list.AddColumn(ColumnDefinition(
-					field["name"],
-					field_type));
-				}
+                // Extract the fields
+                vector<BQField> column_list;
+                for (const auto& field : j["schema"]["fields"]) {
+					auto field_name = field["name"].get<std::string>();
+                    auto field_type = BigQueryUtils::TypeToLogicalType(field["type"]);
+					//add BQField to column_list
+					column_list.push_back(BQField(field_name, field_type));
+                }
 
-				for (const auto& field : column_list.GetColumnNames()) {
-				Printer::Print("field: " + field);
-				}
+                for (const auto& field : column_list) {
+                    Printer::Print("field: " + field.name + " type: " + field.type.ToString());
+                }
 
-				return column_list;
-			});
-		}
-		return pplx::task_from_result(ColumnList());
-		});
+                return column_list;
+            });
+        }
+        return pplx::task_from_result(vector<BQField>());
+    });
 
-	// Wait for all the outstanding I/O to complete and handle any exceptions
-	try {
-		auto column_list = requestTask.get();
-		return column_list;
-	}
-	catch (const std::exception &e) {
-		Printer::Print("Error: " + std::string(e.what()));
-		return unique_ptr<ColumnList>();
-	}
-	return unique_ptr<ColumnList>();
+    // Wait for all the outstanding I/O to complete and handle any exceptions
+    try {
+        auto column_list = requestTask.get();
+        return column_list;
+    }
+    catch (const std::exception &e) {
+        Printer::Print("Error: " + std::string(e.what()));
+        return vector<BQField>();
+    }
+    return vector<BQField>();
 }
 
 unique_ptr<BigQueryResult> BigQueryUtils::BigQueryReadTable(
@@ -146,8 +153,8 @@ unique_ptr<BigQueryResult> BigQueryUtils::BigQueryReadTable(
 	const string &dataset,
 	const string &table,
 	const vector<string> &column_names) {
-		Printer::Print("BigQueryReadTable");
-	 std::string const project_name = "projects/" + execution_project;
+	Printer::Print("BigQueryReadTable: " + execution_project + " " + storage_project + "." + dataset + "." + table);
+	std::string const project_name = "projects/" + execution_project;
   	// table_name should be in the format:
   	// "projects/<project-table-resides-in>/datasets/<dataset-table_resides-in>/tables/<table
   	// name>" The project values in project_name and table_name do not have to be
@@ -156,8 +163,8 @@ unique_ptr<BigQueryResult> BigQueryUtils::BigQueryReadTable(
 
 	constexpr int max_streams = 1;
 	// Create the ReadSession.
-	auto client = bigquery_storage::BigQueryReadClient(
-		bigquery_storage::MakeBigQueryReadConnection());
+	auto client = std::move(bigquery_storage::BigQueryReadClient(
+		bigquery_storage::MakeBigQueryReadConnection()));
 	bigquery_storage_read::ReadSession read_session;
 	read_session.set_data_format(
 		google::cloud::bigquery::storage::v1::DataFormat::ARROW);
@@ -165,13 +172,27 @@ unique_ptr<BigQueryResult> BigQueryUtils::BigQueryReadTable(
 	for (idx_t c = 0; c < column_names.size(); c++) {
 		read_session.mutable_read_options()->add_selected_fields(column_names[c]);
 	}
+	Printer::Print("column_names size: " + to_string(column_names.size()));
 	auto session =
 		client.CreateReadSession(project_name, read_session, max_streams);
 	if(session.ok()) {
-		bigquery_storage_read::ReadSession &session_value = session.value();
-		return make_uniq<BigQueryResult>(session_value, client);
+		auto session_value = std::move(session.value());
+			// Get schema.
+	std::shared_ptr<arrow::Schema> schema =
+		BigQueryUtils::GetArrowSchema(session_value.arrow_schema());
+
+		return make_uniq<BigQueryResult>(
+			execution_project,
+			storage_project,
+			dataset,
+			table,
+			std::move(schema),
+			make_uniq<bigquery_storage_read::ReadSession>(std::move(session_value)),
+			make_uniq<bigquery_storage::BigQueryReadClient>(std::move(client))
+			);
 	}
 	else {
+		Printer::Print("Error creating ReadSession: " + session.status().message());
 		return unique_ptr<BigQueryResult>();
 	}
 }
@@ -227,6 +248,22 @@ string BigQueryUtils::EscapeQuotes(const string &text, char quote) {
 		}
 	}
 	return result;
+}
+
+std::shared_ptr<arrow::Schema> BigQueryUtils::GetArrowSchema(
+    ::google::cloud::bigquery::storage::v1::ArrowSchema const& schema_in) {
+  std::shared_ptr<arrow::Buffer> buffer =
+      std::make_shared<arrow::Buffer>(schema_in.serialized_schema());
+  arrow::io::BufferReader buffer_reader(buffer);
+  arrow::ipc::DictionaryMemo dictionary_memo;
+  auto result = arrow::ipc::ReadSchema(&buffer_reader, &dictionary_memo);
+  if (!result.ok()) {
+	Printer::Print("Unable to parse schema: " + result.status().message());
+    throw result.status();
+  }
+  std::shared_ptr<arrow::Schema> schema = result.ValueOrDie();
+  //Printer::Print("Schema: " + schema->ToString());
+  return schema;
 }
 
 string BigQueryUtils::WriteQuoted(const string &text, char quote) {

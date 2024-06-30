@@ -40,9 +40,17 @@ static unique_ptr<FunctionData> BigQueryBind(ClientContext &context, TableFuncti
 static unique_ptr<GlobalTableFunctionState> BigQueryInitGlobalState(ClientContext &context,
                                                                  TableFunctionInitInput &input) {
 	Printer::Print("BigQueryInitGlobalState");
-	return make_uniq<BigQueryScannerGlobalState>(nullptr);
-	// auto &bind_data = input.bind_data->Cast<BigQueryBindData>();
-	// auto &catalog = bind_data.table.catalog.Cast<BigQueryCatalog>();
+	auto &bind_data = input.bind_data->Cast<BigQueryScanBindData>();
+	auto &entry = bind_data.table;
+	auto &bigquery_catalog = entry.catalog.Cast<BigQueryCatalog>();
+	auto bigquery_result = BigQueryUtils::BigQueryReadTable(
+		bigquery_catalog.execution_project,
+		bigquery_catalog.storage_project,
+		entry.schema.name,
+		entry.name,
+		bind_data.column_names);
+
+	return make_uniq<BigQueryScannerGlobalState>(std::move(bigquery_result));
 }
 
 static unique_ptr<LocalTableFunctionState> BigQueryInitLocalState(ExecutionContext &context, TableFunctionInitInput &input,
@@ -54,6 +62,37 @@ static unique_ptr<LocalTableFunctionState> BigQueryInitLocalState(ExecutionConte
 static void BigQueryScan(ClientContext &context, TableFunctionInput &data, DataChunk &output) {
 	Printer::Print("BigQueryScan");
 	auto &gstate = data.global_state->Cast<BigQueryScannerGlobalState>();
+	auto &result = gstate.result;
+	auto &read_session = result->read_session;
+	auto &client = result->client;
+	auto &schema = result->schema;
+
+	Printer::Print("BigQueryResult");
+
+
+	// Read rows from the ReadSession.
+	constexpr int kRowOffset = 0;
+	auto read_rows = client->ReadRows(read_session->streams(0).name(), kRowOffset);
+
+	std::int64_t num_rows = 0;
+	std::int64_t record_batch_count = 0;
+	for (auto const& read_rows_response : read_rows) {
+		if (read_rows_response.ok()) {
+		std::shared_ptr<arrow::RecordBatch> record_batch =
+			result->GetArrowRecordBatch(read_rows_response->arrow_record_batch(), schema);
+
+		if (record_batch_count == 0) {
+			result->PrintColumnNames(record_batch);
+		}
+
+		result->ProcessRecordBatch(schema, record_batch, num_rows);
+		num_rows += read_rows_response->row_count();
+		++record_batch_count;
+		}
+	}
+  	return;
+
+	//gstate.result->process();
 	idx_t r;
 	//gstate.varchar_chunk.Reset();
 	// for (r = 0; r < STANDARD_VECTOR_SIZE; r++) {

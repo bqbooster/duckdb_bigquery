@@ -9,6 +9,7 @@
       "features": ["bigquery", "grpc-common", "storage"]
     },
     "cpprestsdk",
-    "nlohmann-json"
+    "nlohmann-json",
+    "arrow"
   ]
 }

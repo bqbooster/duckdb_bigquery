@@ -38,26 +38,21 @@ void BigQueryTableEntry::BindUpdateConstraints(Binder &binder, LogicalGet &get, 
 
 TableFunction BigQueryTableEntry::GetScanFunction(ClientContext &context, unique_ptr<FunctionData> &bind_data) {
 	Printer::Print("BigQueryTableEntry::GetScanFunction");
-	// Check if bind_data is already set
-	if (!bind_data) {
-		Printer::Print("BigQueryTableEntry::GetScanFunction bind_data not set");
-	}
 
-	auto result = make_uniq<BigQueryScanBindData>(*this);
+	auto scan_bind_data = make_uniq<BigQueryScanBindData>(*this);
 
 	for (auto &col : columns.Logical()) {
-		result->column_types.push_back(col.GetType());
-		result->column_names.push_back(col.GetName());
+		scan_bind_data->column_types.push_back(col.GetType());
+		scan_bind_data->column_names.push_back(col.GetName());
 	}
 
-	bind_data = std::move(result);
+	bind_data = std::move(scan_bind_data);
 
 	auto function = BigQueryScanFunction();
 	Value filter_pushdown;
 	if (context.TryGetCurrentSetting("bigquery_experimental_filter_pushdown", filter_pushdown)) {
 		function.filter_pushdown = BooleanValue::Get(filter_pushdown);
 	}
-	Printer::Print("BigQueryTableEntry::GetScanFunction returning");
 	return function;
 }
 

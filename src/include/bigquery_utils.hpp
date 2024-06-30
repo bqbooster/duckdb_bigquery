@@ -10,6 +10,7 @@
 
 #include "duckdb.hpp"
 #include "google/cloud/bigquery/storage/v1/bigquery_read_client.h"
+#include <arrow/api.h>
 
 namespace duckdb {
 
@@ -17,6 +18,15 @@ class BigQuerySchemaEntry;
 class BigQueryTableEntry;
 class BigQueryTransaction;
 class BigQueryResult;
+
+class BQField {
+public:
+	//constructor
+	BQField(string name, LogicalType type) : name(name), type(type) {}
+public:
+	string name;
+	LogicalType type;
+};
 
 class BigQueryUtils {
 public:
@@ -36,11 +46,14 @@ public:
 	const string &table,
 	const vector<string> &column_names);
 
-	static optional_ptr<ColumnList> BigQueryReadColumnListForTable(
+	static vector<BQField> BigQueryReadColumnListForTable(
 	const string &execution_project,
 	const string &storage_project,
 	const string &dataset,
 	const string &table);
+
+	static std::shared_ptr<arrow::Schema> GetArrowSchema(
+    ::google::cloud::bigquery::storage::v1::ArrowSchema const& schema_in);
 
 	//static BigQueryConnectionParameters ParseConnectionParameters(const string &dsn);
 	//static BIGQUERY *Connect(const string &dsn);
