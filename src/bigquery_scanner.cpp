@@ -197,6 +197,8 @@ static void BigQueryScan(ClientContext &context, TableFunctionInput &data, DataC
 			 first_min,
 			 static_cast<int64_t>(STANDARD_VECTOR_SIZE));
 
+		D_ASSERT(record_batch->num_columns() == output.ColumnCount());
+
 	  //Printer::Print("max_rows: " + to_string(max_rows));
 
 	  //Printer::Print("Column count : " + to_string(output.ColumnCount()));

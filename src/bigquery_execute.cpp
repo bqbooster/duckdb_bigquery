@@ -1,12 +1,12 @@
 #include "duckdb.hpp"
 
-#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
-#include "bigquery_scanner.hpp"
 #include "duckdb/main/database_manager.hpp"
+//#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/main/attached_database.hpp"
+#include "bigquery_scanner.hpp"
+//#include "bigquery_connection.hpp"
 #include "storage/bigquery_catalog.hpp"
 #include "storage/bigquery_transaction.hpp"
-#include "bigquery_connection.hpp"
 
 namespace duckdb {
 
@@ -22,8 +22,8 @@ struct BigQueryExecuteBindData : public TableFunctionData {
 static duckdb::unique_ptr<FunctionData> BigQueryExecuteBind(ClientContext &context, TableFunctionBindInput &input,
                                                          vector<LogicalType> &return_types, vector<string> &names) {
 
-	return_types.emplace_back(LogicalType::BOOLEAN);
-	names.emplace_back("Success");
+	 return_types.emplace_back(LogicalType(LogicalTypeId::BOOLEAN));
+	 names.emplace_back("Success");
 
 	// look up the database to query
 	auto db_name = input.inputs[0].GetValue<string>();

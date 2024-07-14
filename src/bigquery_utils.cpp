@@ -110,7 +110,8 @@ namespace duckdb {
 };
 
 std::string GetAccessToken(const string &service_account_json) {
-	google::cloud::StatusOr<std::__1::shared_ptr<google::cloud::storage::oauth2::Credentials>>  credentials;
+	google::cloud::StatusOr<std::shared_ptr<google::cloud::storage::oauth2::Credentials>> credentials;
+
 	if(service_account_json.empty()) {
 		credentials = gcpoauth2::GoogleDefaultCredentials();
 	} else {
